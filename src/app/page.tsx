@@ -1,161 +1,167 @@
-"use client";
+'use client';
 
-import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
-import Chat from "@/components/chat";
-import { Button } from "@/components/ui/button";
-import {
-  CheckCircle,
-  Zap,
-  Database,
-  Shield,
-  ExternalLink,
-} from "lucide-react";
-import { ThemeToggle } from "@/components/theme-toggle";
-import Image from "next/image";
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { ShoppingCart } from 'lucide-react';
+import { useCart } from '@/hooks/use-cart';
+import { getProducts } from '@/services/order-service';
 
-export default function Home() {
+// Define types
+type Product = {
+  product_id: number;
+  name: string;
+  description: string;
+  price: number;
+  image_url: string;
+  is_available: boolean;
+};
+
+export default function HomePage() {
+  const { items, addToCart } = useCart();
+  const [cartCount, setCartCount] = useState(0);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const count = items.reduce((total, item) => total + item.quantity, 0);
+    setCartCount(count);
+  }, [items]);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const data = await getProducts();
+        setProducts(data);
+      } catch (err) {
+        setError('Failed to load products');
+        console.error('Error fetching products:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-xl">Loading menu...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-xl text-red-500">Error: {error}</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+    <div className="min-h-screen bg-dark-900 text-white">
+      {/* Header */}
+      <header className="bg-dark-900 text-white shadow-sm">
+        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+          <div className="text-2xl font-bold text-white-800">
+            <Link href="/"><img
+              src="/rown.png"
+              alt="Rown Coffee Logo"
+              className="w-8 h-8 object-cover object-center"
+              width={50}
+              height={50}
+            /></Link>
+          </div>
+          <Link href="/cart">
+            <Button variant="outline" size="sm" className="relative">
+              <ShoppingCart className="h-5 w-5" />
+              {cartCount > 0 && (
+                <Badge className="absolute -top-2 -right-2 rounded-full h-6 w-6 flex items-center justify-center">
+                  {cartCount}
+                </Badge>
+              )}
+            </Button>
+          </Link>
+        </div>
+      </header>
+
       {/* Hero Section */}
-      <div className="text-center py-12 sm:py-16 relative px-4">
-        <div className="absolute top-4 right-4 sm:top-6 sm:right-6">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <ThemeToggle />
-            <SignedOut>
-              <SignInButton>
-                <Button size="sm" className="text-xs sm:text-sm">
-                  Sign In
-                </Button>
-              </SignInButton>
-            </SignedOut>
-            <SignedIn>
-              <UserButton />
-            </SignedIn>
+      <section className="py-12 bg-gradient-to-r from-[#630000] to-[#C90000] text-white">
+        <div className="container mx-auto px-4 text-center">
+          <h1 className="text-4xl font-bold mb-4">Premium Coffee Delivered</h1>
+          <p className="text-xl max-w-2xl mx-auto">
+            Discover our handcrafted selection of premium coffee, sourced ethically and roasted to perfection.
+          </p>
+        </div>
+      </section>
+
+      {/* Products Section */}
+      <section className="py-8">
+        <div className="container px-4 mx-auto">
+          <h2 className="text-3xl font-bold mb-8 text-center text-white-800">Our Menu</h2>
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {products.map((product) => (
+              <Card key={product.product_id} className="overflow-hidden transition-transform hover:scale-101">
+                <CardHeader>
+                  <div className="rounded-md overflow-hidden">
+                    <Link href={`/product/${product.product_id}`}>
+                      <img
+                        src={product.image_url}
+                        alt={product.name}
+                        className="w-full h-full object-cover object-center"
+                        width={300}
+                        height={200}
+                      />
+                    </Link>
+                  </div>
+                  <CardTitle className="text-l mt-2">{product.name}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2l font-bold text-red-700">Rp {product.price.toLocaleString()}</p>
+                </CardContent>
+                <CardFooter className="flex flex-col gap-2">
+                  {!product.is_available ? (
+                    <Button disabled className="w-full">
+                      <Badge variant="destructive">Habis</Badge>
+                    </Button>
+                  ) : (
+                    <>
+                      <Link href={`/product/${product.product_id}`} className="w-full">
+                        <Button variant="outline" className="w-full">
+                          Lihat Detail
+                        </Button>
+                      </Link>
+                      <Button
+                        className="w-full bg-[#630000] hover:bg-[#7a0000]"
+                        onClick={() => addToCart({
+                          id: product.product_id,
+                          image_url: product.image_url,
+                          name: product.name,
+                          price: product.price,
+                        })}
+                      >
+                        <ShoppingCart className="h-4 w-4 mr-2"></ShoppingCart>
+                      </Button>
+                    </>
+                  )}
+                </CardFooter>
+              </Card>
+            ))}
           </div>
         </div>
+      </section>
 
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-4">
-          <Image
-            src="/codeguide-logo.png"
-            alt="CodeGuide Logo"
-            width={50}
-            height={50}
-            className="rounded-xl sm:w-[60px] sm:h-[60px]"
-          />
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400 bg-clip-text text-transparent">
-            CodeGuide Starter
-          </h1>
+      {/* Footer */}
+      <footer className="bg-[#630000] text-white py-8 mt-12">
+        <div className="container mx-auto px-4 text-center">
+          <p>© {new Date().getFullYear()} Rown Coffee. All rights reserved.</p>
         </div>
-        <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
-          Build faster with your AI coding agent
-        </p>
-      </div>
-
-      <main className="container mx-auto px-4 sm:px-6 pb-12 sm:pb-8 max-w-5xl">
-        <div className="text-center mb-8">
-          <div className="text-4xl sm:text-5xl mb-2">⚠️</div>
-          <div className="font-bold text-lg sm:text-xl mb-1">Setup Required</div>
-          <div className="text-sm sm:text-base text-muted-foreground">
-            Add environment variables to get started
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-          {/* Clerk */}
-          <div className="text-center p-3 sm:p-4 rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10">
-            <div className="flex justify-center mb-3">
-              <Shield className="w-6 h-6 sm:w-8 sm:h-8 text-blue-500" />
-            </div>
-            <div className="font-semibold mb-2 text-sm sm:text-base">
-              Clerk Auth
-            </div>
-            <div className="text-xs text-muted-foreground mb-2">
-              <div className="font-mono bg-blue-100 dark:bg-blue-800 px-2 py-1 rounded mb-1">NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY</div>
-              <div className="font-mono bg-blue-100 dark:bg-blue-800 px-2 py-1 rounded">CLERK_SECRET_KEY</div>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                window.open("https://dashboard.clerk.com", "_blank")
-              }
-              className="w-full text-xs sm:text-sm"
-            >
-              <ExternalLink className="w-3 h-3 mr-1" />
-              Dashboard
-            </Button>
-          </div>
-
-          {/* Supabase */}
-          <div className="text-center p-3 sm:p-4 rounded-lg bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/10 dark:to-emerald-900/10">
-            <div className="flex justify-center mb-3">
-              <Database className="w-6 h-6 sm:w-8 sm:h-8 text-green-500" />
-            </div>
-            <div className="font-semibold mb-2 text-sm sm:text-base">
-              Supabase DB
-            </div>
-            <div className="text-xs text-muted-foreground mb-2">
-              <div className="font-mono bg-green-100 dark:bg-green-800 px-2 py-1 rounded mb-1">NEXT_PUBLIC_SUPABASE_URL</div>
-              <div className="font-mono bg-green-100 dark:bg-green-800 px-2 py-1 rounded">NEXT_PUBLIC_SUPABASE_ANON_KEY</div>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                window.open("https://supabase.com/dashboard", "_blank")
-              }
-              className="w-full text-xs sm:text-sm"
-            >
-              <ExternalLink className="w-3 h-3 mr-1" />
-              Dashboard
-            </Button>
-          </div>
-
-          {/* AI */}
-          <div className="text-center p-3 sm:p-4 rounded-lg bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/10 dark:to-pink-900/10 sm:col-span-2 md:col-span-1">
-            <div className="flex justify-center mb-3">
-              <Zap className="w-6 h-6 sm:w-8 sm:h-8 text-purple-500" />
-            </div>
-            <div className="font-semibold mb-2 text-sm sm:text-base">
-              AI SDK
-            </div>
-            <div className="text-xs text-muted-foreground mb-2">
-              <div className="font-mono bg-purple-100 dark:bg-purple-800 px-2 py-1 rounded mb-1">OPENAI_API_KEY</div>
-              <div className="font-mono bg-purple-100 dark:bg-purple-800 px-2 py-1 rounded">ANTHROPIC_API_KEY</div>
-            </div>
-            <div className="grid grid-cols-2 gap-1 sm:gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  window.open("https://platform.openai.com", "_blank")
-                }
-                className="text-xs px-1 sm:px-2"
-              >
-                OpenAI
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  window.open("https://console.anthropic.com", "_blank")
-                }
-                className="text-xs px-1 sm:px-2"
-              >
-                Anthropic
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Chat Section */}
-        <SignedIn>
-          <div className="mt-6 sm:mt-8">
-            <Chat />
-          </div>
-        </SignedIn>
-      </main>
+      </footer>
     </div>
   );
 }
