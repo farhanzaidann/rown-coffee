@@ -11,20 +11,8 @@ export const createClient = () => {
     SUPABASE_CONFIG.key,
     {
       cookies: {
-        getAll() {
-          // At build time, return empty array
-          return [];
-        },
-        setAll(cookiesToSet) {
-          try {
-            // At build time, just return without setting
-            return;
-          } catch {
-            // The `setAll` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
-          }
-        },
+        getAll: () => [],
+        setAll: () => {} // Leave empty to avoid errors during build
       },
     }
   );
